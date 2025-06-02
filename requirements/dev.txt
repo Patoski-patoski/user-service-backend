@@ -1,0 +1,5 @@
+-r base.txt  # This includes all dependencies from base.txt
+django-stubs>=4.2.7
+mypy>=1.7.0
+black>=23.11.0
+isort>=5.12.0
