@@ -1,25 +1,36 @@
-"""users/models.py:Custom user model for the application."""
+# users/models.py
+"""Custom user model for the application."""
 
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from django.utils import timezone
 from django.db import models
 import uuid
-from typing import Any, Dict, Optional, TypeVar
+from typing import Any, Optional, TypeVar, TYPE_CHECKING
 
 # Type variable for User model
 # Define a type variable for the User class to avoid circular references
+if TYPE_CHECKING:
+   from django.db.models.manager import Manager 
+   
+
 U = TypeVar("U", bound="User")
 
 
 # Create your models here.
 class UserManager(BaseUserManager[U]):
+    """Custom user manager for User model."""
+    
     def create_user(
-        self, email: str, password: Optional[str] = None, **extra_fields: Dict[str, Any]
+        self, 
+        email: str, 
+        password: Optional[str] = None, 
+        **extra_fields: Any
     ) -> U:
         """Create and return a user with an email and password."""
         if not email:
             raise ValueError("The Email field must be set")
+        
         email = self.normalize_email(email)
         user: U = self.model(email=email, **extra_fields)
         user.set_password(password)
@@ -46,6 +57,8 @@ class UserManager(BaseUserManager[U]):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
+    """Custom user model using email as the unique identifier."""
+      
     email = models.EmailField(unique=True, max_length=100)
     first_name = models.CharField(max_length=30, blank=True)
     last_name = models.CharField(max_length=30, blank=True)
@@ -55,13 +68,18 @@ class User(AbstractBaseUser, PermissionsMixin):
     activation_token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     last_login = models.DateTimeField(null=True, blank=True)
 
-    objects: UserManager['User'] = UserManager() # type: ignore
+    objects: "Manager['User']" = UserManager() # type: ignore[assignment]
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS: list[str] = []
 
     def __str__(self) -> str:
         return self.email
+    
+    @property
+    def full_name(self) -> str:
+        """Return the full name of the user."""
+        return f"{self.first_name} {self.last_name}".strip()
 
     class Meta:
         swappable = "AUTH_USER_MODEL"
