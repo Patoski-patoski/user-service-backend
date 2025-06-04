@@ -5,17 +5,17 @@ from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from django.utils import timezone
 from django.db import models
+
 import uuid
 from typing import Any, Optional, TypeVar, TYPE_CHECKING
+from datetime import timedelta
 
 # Type variable for User model
 # Define a type variable for the User class to avoid circular references
 if TYPE_CHECKING:
    from django.db.models.manager import Manager 
-   
 
 U = TypeVar("U", bound="User")
-
 
 # Create your models here.
 class UserManager(BaseUserManager[U]):
@@ -66,7 +66,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
     activation_token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    activation_token_expiry = models.DateTimeField(null=True, blank=True)
     last_login = models.DateTimeField(null=True, blank=True)
+    user_activation_token_expiry = timezone.now() + timedelta(hours=12)
 
     objects: "Manager['User']" = UserManager() # type: ignore[assignment]
 

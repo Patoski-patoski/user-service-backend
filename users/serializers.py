@@ -1,18 +1,17 @@
 # users/serializers.py
-
 # type: ignore[no-untyped-call]
+
+"""Serializer for user registration and validation."""
 
 from .models import User
 from rest_framework import serializers 
-from typing import Optional, Any, Dict
+from typing import Optional, Dict
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer[User]):
-    """
-    Serializer for user registration.
-    """
+    """Serializer for user registration."""
 
     password = serializers.CharField(
         write_only=True,
@@ -60,7 +59,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer[User]):
         
         if not password or not confirm_password:
             raise serializers.ValidationError(
-                {"password": " BothPassword and confirm password are required."}
+                {"password": " Both Password and confirm password are required."}
             )
             
         if password != confirm_password:
@@ -76,7 +75,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer[User]):
         """Create and return a new user instance."""
         password: str = validated_data.pop("password")
         
-        user = User.objects.create_user(
+        user: User = User.objects.create_user(
             email=validated_data["email"],
             password=password,
             first_name=validated_data.get("first_name", ""),

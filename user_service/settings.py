@@ -117,7 +117,7 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend" # development
 # EMAIL_USE_TLS = True
 # EMAIL_HOST_USER = 'your-email@gmail.com'
 # EMAIL_HOST_PASSWORD = 'your-app-password'
-DEFAULT_FROM_EMAIL = "noreply@yourapp.com"
+DEFAULT_FROM_EMAIL = "codesbypatrick@gmail.com"
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
@@ -129,6 +129,19 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
+
+REST_FRAMEWORK: Dict[str, Any] = {
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "10/hour",  # 10 requests per hour for anonymous users
+        "users": "10/minute",  # 10 requests per minute for authenticated users
+    },
+}
+
+SITE_PROTOCOL = "http"  # Change to 'https' in production
+SITE_DOMAIN = "localhost:8000"  # Change to your domain in production
 
 
 # Static files (CSS, JavaScript, Images)
