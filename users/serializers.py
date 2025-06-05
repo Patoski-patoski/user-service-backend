@@ -21,10 +21,10 @@ class UserRegistrationSerializer(serializers.ModelSerializer[User]):
     )
 
     confirm_password = serializers.CharField(
-        write_only=True, 
+        write_only=True,
         required=True,
         style={"input_type": "password"},
-        help_text="Confirm your password. Must Match the password field.",
+        help_text="Confirm your password. Must match the password field.",
     )
 
     class Meta:
@@ -34,9 +34,9 @@ class UserRegistrationSerializer(serializers.ModelSerializer[User]):
             "password": {"write_only": True},
             "email": {"required": True},
         }
-        
+
     def validate_email(self, value: str) -> str:
-        """ Validate email uniqueness"""
+        """Validate email uniqueness"""
         if User.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError(
                 {"email": "A user with this email already exists."}
@@ -44,42 +44,42 @@ class UserRegistrationSerializer(serializers.ModelSerializer[User]):
         return value.lower()
 
     def validate_password(self, value: str) -> str:
-        """ Validate password strength using Django's built-in validators """
+        """Validate password strength using Django's built-in validators"""
         try:
             validate_password(value)
         except ValidationError as e:
             raise serializers.ValidationError({"password": list(e.messages)})
         return value
-    
-    
+
     def validate(self, attrs: Dict[str, str]) -> Dict[str, str]:
-        """ Validate that password and confirm_password match """
+        """Validate that password and confirm_password match"""
         password: Optional[str] = attrs.get("password")
         confirm_password: Optional[str] = attrs.get("confirm_password")
-        
+
         if not password or not confirm_password:
             raise serializers.ValidationError(
-                {"password": " Both Password and confirm password are required."}
+                {"password": "Both password and confirm password are required."}
             )
-            
+
         if password != confirm_password:
             raise serializers.ValidationError(
                 {"confirm_password": "Password confirmation do not match."}
             )
-            
-        attrs.pop("confirm_password", None)  # Remove confirm_password from attrs
 
+        attrs.pop("confirm_password", None)  # Remove confirm_password from attrs
         return attrs
 
-    def create(self, validated_data: Dict[str, str]) -> User:
+    def create(
+        self, validated_data: Dict[str, str]
+    ) -> User:  # Explicitly type return value
         """Create and return a new user instance."""
         password: str = validated_data.pop("password")
-        
+
         user: User = User.objects.create_user(
             email=validated_data["email"],
             password=password,
             first_name=validated_data.get("first_name", ""),
             last_name=validated_data.get("last_name", ""),
         )
-        
+
         return user

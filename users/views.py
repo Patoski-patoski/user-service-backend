@@ -28,12 +28,10 @@ class RegisterView(APIView):
     and sending an activation email.
     """
 
+    throttle_classes = [AnonRateThrottle, UserRateThrottle]
+
     def post(self, request: DRFRequest) -> Response:
         """Register a new user and send an activation email."""
-        throttle_classes = [AnonRateThrottle, UserRateThrottle]
-        if throttle_classes:
-            logger.info("Rate limiting. Here we go")
-            
         serializer = UserRegistrationSerializer(data=request.data)
 
         if not serializer.is_valid():
@@ -43,9 +41,7 @@ class RegisterView(APIView):
             )
         try:
             user = serializer.save()
-            activation_link: str = (
-                f"{settings.SITE_PROTOCOL}://{settings.SITE_DOMAIN}/api/users/activate/{user.activation_token}"
-            )
+            activation_link: str = f"{settings.SITE_PROTOCOL}://{settings.SITE_DOMAIN}/api/users/activate/{user.activation_token}"
 
             email_sent = self.send_activation_email(user.email, activation_link)
 
@@ -57,7 +53,7 @@ class RegisterView(APIView):
                 response_data["warning"] = (
                     "Registration successful, but failed to send activation email"
                 )
-                
+
             return Response(response_data, status=status.HTTP_201_CREATED)
 
         except Exception as e:
@@ -74,21 +70,18 @@ class RegisterView(APIView):
         try:
             send_mail(
                 subject="Activate your account",
-                message=f"Click the link to activate your account\n: {activation_link}",
+                message=f"Click the link to activate your account: {activation_link}",
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[recipient_email],
                 fail_silently=False,
             )
             logger.info(f"Activation email sent successfully to {recipient_email}")
-
             return True
-
         except Exception as e:
             logger.error(
                 f"Failed to send activation email to {recipient_email}: {str(e)}"
             )
             return False
-
 
 class ActivateView(APIView):
     """
@@ -128,7 +121,7 @@ class ActivateView(APIView):
         except User.DoesNotExist:
             return Response(
                 {"error": "Invalid activation token."},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_400_BAD_REQUEST,  # Changed from 404 to 400
             )
 
         except Exception as e:

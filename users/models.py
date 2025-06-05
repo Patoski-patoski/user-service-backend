@@ -1,4 +1,6 @@
 # users/models.py
+# type: ignore[no-untyped-call]
+
 """Custom user model for the application."""
 
 from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
@@ -13,7 +15,7 @@ from datetime import timedelta
 # Type variable for User model
 # Define a type variable for the User class to avoid circular references
 if TYPE_CHECKING:
-   from django.db.models.manager import Manager 
+   from .models import User
 
 U = TypeVar("U", bound="User")
 
@@ -70,7 +72,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     last_login = models.DateTimeField(null=True, blank=True)
     user_activation_token_expiry = timezone.now() + timedelta(hours=12)
 
-    objects: "Manager['User']" = UserManager() # type: ignore[assignment]
+
+    if TYPE_CHECKING:
+        objects: UserManager["User"] = UserManager()  # type ignore[assignment]
+    else:
+        objects = UserManager()
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS: list[str] = []
