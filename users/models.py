@@ -7,6 +7,7 @@ from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from django.utils import timezone
 from django.db import models
+from django.db.models import EmailField
 
 import uuid
 from typing import Any, Optional, TypeVar, TYPE_CHECKING
@@ -62,7 +63,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     """Custom user model using email as the unique identifier."""
       
     email = models.EmailField(unique=True, max_length=100)
-    first_name = models.CharField(max_length=30, blank=True)
+    first_name: str = models.CharField(max_length=30, blank=True)
     last_name = models.CharField(max_length=30, blank=True)
     is_active = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
@@ -74,7 +75,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
     if TYPE_CHECKING:
-        objects: UserManager["User"] = UserManager()  # type ignore[assignment]
+        objects: UserManager["User"] = UserManager() 
     else:
         objects = UserManager()
 

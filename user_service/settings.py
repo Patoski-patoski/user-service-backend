@@ -136,8 +136,8 @@ REST_FRAMEWORK: Dict[str, Any] = {
         "rest_framework.throttling.UserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "10/minute",  # 10 requests per hour for anonymous users
-        "user": "10/minute",  # 10 requests per minute for authenticated users
+        "anon": "5/minute",  # 10 requests per hour for anonymous users
+        "user": "5/minute",  # 10 requests per minute for authenticated users
     },
 }
 

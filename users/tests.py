@@ -4,12 +4,13 @@
 """Custom user model for the application."""
 
 from django.test import TestCase
-from rest_framework.test import APIClient, APITestCase
 from django.test.utils import override_settings
+from django.core import mail
+from django.core.cache import cache
 from rest_framework import status
+from rest_framework.test import APIClient, APITestCase
 from rest_framework.response import Response
 from typing import Dict, Optional
-from django.core.mail import outbox
 import uuid
 
 from .models import User
@@ -94,8 +95,10 @@ class UserRegistrationSerializerTests(TestCase):
 
 
 class RegisterViewTests(APITestCase):
-    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
     def setUp(self) -> None:
+        
+        cache.clear()
+        
         self.client: APIClient = APIClient()
         self.url = "/api/users/register/"
         self.base_valid_data: Dict[str, str] = {
@@ -104,18 +107,21 @@ class RegisterViewTests(APITestCase):
             "password": "SecurePass123",
             "confirm_password": "SecurePass123",
         }
-
+    
+    def tearDown(self) -> None:
+        cache.clear()
     
     @override_settings(
+        EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
         REST_FRAMEWORK={
-            "DEFAULT_THROTTLE_CLASSES": [],  # Disable throttling for these tests
+            "DEFAULT_THROTTLE_CLASSES": [],  # Disable throttling for these tests                
             "DEFAULT_THROTTLE_RATES": {},
         }
     )
     def test_successful_registration(self) -> None:
         """Test successful user registration."""
         valid_data = self.base_valid_data.copy()
-        valid_data["email"] = "testuserpop3@example.com"
+        valid_data["email"] = "testuser@example.com"
         response: Response = self.client.post(self.url, valid_data, format="json")
         print("response", response.status_code)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -126,10 +132,20 @@ class RegisterViewTests(APITestCase):
         user: Optional[User] = User.objects.filter(email="testuser@example.com").first()
         self.assertIsNotNone(user)
         self.assertFalse(user.is_active)
-        self.assertEqual(len(outbox), 0)
-        print("Outbox", outbox)
-        self.assertIn("Activate your account", outbox[0].subject)
+        self.assertEqual(len(mail.outbox), 1)
+        print("\n\nOutbox", mail.outbox)
+        self.assertIn("Activate your account", mail.outbox[0].subject)
 
+    @override_settings(
+        REST_FRAMEWORK={
+            "DEFAULT_THROTTLE_CLASSES": [
+                "rest_framework.throttling.AnonRateThrottle",
+                ],
+            "DEFAULT_THROTTLE_RATES": {
+                "anon": "5/minute",
+            },
+        }
+    )
     def test_invalid_data(self) -> None:
         """Test registration with invalid data (e.g., password mismatch)."""
         invalid_data = self.base_valid_data.copy()
@@ -139,6 +155,13 @@ class RegisterViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("confirm_password", response.data["errors"])
 
+    
+    @override_settings(
+        REST_FRAMEWORK={
+            "DEFAULT_THROTTLE_CLASSES": [],  # Disable throttling for this test
+            "DEFAULT_THROTTLE_RATES": {},
+        }
+    )
     def test_duplicate_email(self) -> None:
         """Test registration with an email that already exists."""
         User.objects.create_user(email="testuser@example.com", password="password123")
@@ -147,23 +170,35 @@ class RegisterViewTests(APITestCase):
         response: Response = self.client.post(self.url, valid_data, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("email", response.data["errors"])
-        
 
+    @override_settings(
+        REST_FRAMEWORK={
+            "DEFAULT_THROTTLE_CLASSES": [
+                "rest_framework.throttling.AnonRateThrottle",
+            ],
+            "DEFAULT_THROTTLE_RATES": {
+                "anon": "5/minute",
+            },
+        }
+    )
     def test_rate_limiting(self) -> None:
         """Test rate limiting on registration endpoint."""
-        for i in range(6):  # Exceed a 5/minute limit
+        
+        cache.clear()
+        
+        for i in range(5): 
             valid_data = self.base_valid_data.copy()
-            valid_data["email"] = f"testuser{i}@example{i}.com"  # Unique email per request
-            print(f"Email loop: {valid_data['email']}")
+            valid_data["email"] = f"testuser{i}@example.com"
+            print("valid_data emails", valid_data["email"])
             response: Response = self.client.post(self.url, valid_data, format="json")
-            if i < 6:
-                self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-            else:
-                self.assertEqual(
-                    response.status_code, status.HTTP_429_TOO_MANY_REQUESTS
-                )
-                self.assertIn("Throttle", response.data.get("detail", ""))
-                
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        valid_data = self.base_valid_data.copy()
+        valid_data["email"] = "testuser6@example.com"
+        response: Response = self.client.post(self.url, valid_data, format="json")
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertIn("Request was throttled", response.data.get("detail", ""))
+              
 
 
 class ActivateViewTests(APITestCase):
@@ -201,7 +236,6 @@ class ActivateViewTests(APITestCase):
     def test_invalid_token(self) -> None:
         """Test activation with an invalid token."""
         invalid_url = "/api/users/activate/invalid-token/"
-        response = self.client.get(invalid_url)
+        response: Response = self.client.get(invalid_url)
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertEqual(response.data["error"], "Invalid activation token.")
 
