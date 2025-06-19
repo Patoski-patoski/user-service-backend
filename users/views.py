@@ -1,5 +1,4 @@
 # users/view.py
-# type: ignore[no-untyped-call]
 
 from rest_framework import status
 from rest_framework.response import Response
@@ -8,17 +7,19 @@ from rest_framework.views import APIView
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 
 from django.conf import settings
+# from user_service import settings
 from django.core.mail import send_mail
+from django.utils import timezone
+
 
 from typing import Dict, Any
 from .serializers import UserRegistrationSerializer
 from datetime import timezone
-
 import logging
 
 from .models import User
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 # Create your views here.
 
 
@@ -43,7 +44,7 @@ class RegisterView(APIView):
             user = serializer.save()
             activation_link: str = f"{settings.SITE_PROTOCOL}://{settings.SITE_DOMAIN}/api/users/activate/{user.activation_token}"
 
-            email_sent = self.send_activation_email(user.email, activation_link)
+            email_sent: bool = self.send_activation_email(user.email, activation_link)
 
             response_data: Dict[str, Any] = {
                 "message": "Registration successful. Please check your email to activate your account.",
@@ -96,6 +97,7 @@ class ActivateView(APIView):
                     {"message": "Account is already activated."},
                     status=status.HTTP_200_OK,
                 )
+            from django.utils import timezone
 
             if (
                 user.activation_token_expiry
@@ -105,6 +107,7 @@ class ActivateView(APIView):
                     {"error": "Activation token has expired."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+
             user.is_active = True
             user.save(update_fields=["is_active"])
 

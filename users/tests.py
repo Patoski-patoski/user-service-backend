@@ -1,5 +1,4 @@
 # users/tests.py
-# type: ignore[no-untyped-call]
 
 """Custom user model for the application."""
 
@@ -9,7 +8,7 @@ from django.core import mail
 from django.core.cache import cache
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
-from rest_framework.response import Response
+from rest_framework.response import _MonkeyPatchedResponse, Response
 from typing import Dict, Optional
 import uuid
 
@@ -118,9 +117,9 @@ class RegisterViewTests(APITestCase):
             "DEFAULT_THROTTLE_RATES": {},
         }
     )
-    def test_successful_registration(self) -> None:
+    def test_successful_registration(self):
         """Test successful user registration."""
-        valid_data = self.base_valid_data.copy()
+        valid_data: Dict[str, str] = self.base_valid_data.copy()
         valid_data["email"] = "testuser@example.com"
         response: Response = self.client.post(self.url, valid_data, format="json")
         print("response", response.status_code)
@@ -187,13 +186,13 @@ class RegisterViewTests(APITestCase):
         cache.clear()
         
         for i in range(5): 
-            valid_data = self.base_valid_data.copy()
+            valid_data: Dict[str, str] = self.base_valid_data.copy()
             valid_data["email"] = f"testuser{i}@example.com"
             print("valid_data emails", valid_data["email"])
             response: Response = self.client.post(self.url, valid_data, format="json")
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        
-        valid_data = self.base_valid_data.copy()
+
+        valid_data: Dict[str, str] = self.base_valid_data.copy()
         valid_data["email"] = "testuser6@example.com"
         response: Response = self.client.post(self.url, valid_data, format="json")
         self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
@@ -228,7 +227,7 @@ class ActivateViewTests(APITestCase):
         self.user.is_active = True
         self.user.save()
 
-        response = self.client.get(self.url)
+        response: _MonkeyPatchedResponse = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("message", response.data)
         self.assertEqual(response.data["message"], "Account is already activated.")

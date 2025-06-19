@@ -16,8 +16,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.urls.resolvers import URLResolver
 
-urlpatterns = [
+urlpatterns: list[URLResolver] = [
     path('', include('users.urls')),  # Redirect root URL to users app
     path('admin/', admin.site.urls),
     path('api/users/', include('users.urls'))

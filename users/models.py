@@ -1,5 +1,4 @@
 # users/models.py
-# type: ignore[no-untyped-call]
 
 """Custom user model for the application."""
 
@@ -7,33 +6,29 @@ from django.contrib.auth.base_user import AbstractBaseUser, BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from django.utils import timezone
 from django.db import models
-from django.db.models import EmailField
-
 import uuid
 from typing import Any, Optional, TypeVar, TYPE_CHECKING
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 # Type variable for User model
 # Define a type variable for the User class to avoid circular references
 if TYPE_CHECKING:
-   from .models import User
+    from .models import User
 
 U = TypeVar("U", bound="User")
+
 
 # Create your models here.
 class UserManager(BaseUserManager[U]):
     """Custom user manager for User model."""
-    
+
     def create_user(
-        self, 
-        email: str, 
-        password: Optional[str] = None, 
-        **extra_fields: Any
+        self, email: str, password: Optional[str] = None, **extra_fields: Any
     ) -> U:
         """Create and return a user with an email and password."""
         if not email:
             raise ValueError("The Email field must be set")
-        
+
         email = self.normalize_email(email)
         user: U = self.model(email=email, **extra_fields)
         user.set_password(password)
@@ -59,32 +54,41 @@ class UserManager(BaseUserManager[U]):
         return self.create_user(email, password, **extra_fields)
 
 
+def default_activation_token_expiry() -> datetime:
+    return timezone.now() + timedelta(hours=12)
+
+
 class User(AbstractBaseUser, PermissionsMixin):
     """Custom user model using email as the unique identifier."""
-      
+
+    id = models.UUIDField(
+        primary_key=True, 
+        default=uuid.uuid4, 
+        editable=False, 
+        unique=True,
+        help_text="Unique identifier for the user."
+    )
     email = models.EmailField(unique=True, max_length=100)
-    first_name: str = models.CharField(max_length=30, blank=True)
+    first_name = models.CharField(max_length=30, blank=True)
     last_name = models.CharField(max_length=30, blank=True)
     is_active = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
-    date_joined = models.DateTimeField(default=timezone.now)
+    date_joined = models.DateTimeField(default=timezone.now, editable=False)
     activation_token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    activation_token_expiry = models.DateTimeField(null=True, blank=True)
+    activation_token_expiry = models.DateTimeField(default=default_activation_token_expiry)
     last_login = models.DateTimeField(null=True, blank=True)
-    user_activation_token_expiry = timezone.now() + timedelta(hours=12)
-
 
     if TYPE_CHECKING:
-        objects: UserManager["User"] = UserManager() 
+        objects: UserManager["User"] = UserManager()
     else:
         objects = UserManager()
 
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS: list[str] = []
+    REQUIRED_FIELDS = []
 
     def __str__(self) -> str:
         return self.email
-    
+
     @property
     def full_name(self) -> str:
         """Return the full name of the user."""

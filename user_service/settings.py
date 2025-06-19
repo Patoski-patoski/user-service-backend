@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR: Path = Path(__file__).resolve().parent.parent
 
 
 # Quick-start development settings - unsuitable for production
@@ -31,7 +31,7 @@ ALLOWED_HOSTS = []
 
 # Application definition
 
-INSTALLED_APPS = [
+INSTALLED_APPS: list[str] = [
     'users',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -43,7 +43,7 @@ INSTALLED_APPS = [
 ]
 
 
-MIDDLEWARE = [
+MIDDLEWARE: list[str] = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -76,7 +76,7 @@ WSGI_APPLICATION = 'user_service.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
+DATABASES: Dict[str, Dict[str, str]] = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'user_service_db',
@@ -91,7 +91,7 @@ DATABASES = {
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
-AUTH_PASSWORD_VALIDATORS = [
+AUTH_PASSWORD_VALIDATORS: list[dict[str, str]] = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
     },
@@ -136,8 +136,8 @@ REST_FRAMEWORK: Dict[str, Any] = {
         "rest_framework.throttling.UserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "5/minute",  # 10 requests per hour for anonymous users
-        "user": "5/minute",  # 10 requests per minute for authenticated users
+        "anon": "5/minute",  # 5 requests per minute for anonymous users
+        "user": "5/minute",  # 5 requests per minute for authenticated users
     },
 }
 

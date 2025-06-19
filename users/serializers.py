@@ -1,5 +1,4 @@
 # users/serializers.py
-# type: ignore[no-untyped-call]
 
 """Serializer for user registration and validation."""
 
@@ -29,8 +28,14 @@ class UserRegistrationSerializer(serializers.ModelSerializer[User]):
 
     class Meta:
         model = User
-        fields = ("email", "first_name", "last_name", "password", "confirm_password")
-        extra_kwargs = {
+        fields = (
+            "email", 
+            "first_name", 
+            "last_name", 
+            "password", 
+            "confirm_password")
+        
+        extra_kwargs: Dict[str, Dict[str, bool]] = {
             "password": {"write_only": True},
             "email": {"required": True},
         }
@@ -71,7 +76,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer[User]):
 
     def create(
         self, validated_data: Dict[str, str]
-    ) -> User:  # Explicitly type return value
+    ) -> User:
         """Create and return a new user instance."""
         password: str = validated_data.pop("password")
 
