@@ -8,7 +8,7 @@ from django.core import mail
 from django.core.cache import cache
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
-from rest_framework.response import _MonkeyPatchedResponse, Response
+from rest_framework.response import Response
 from typing import Dict, Optional
 import uuid
 
@@ -227,7 +227,7 @@ class ActivateViewTests(APITestCase):
         self.user.is_active = True
         self.user.save()
 
-        response: _MonkeyPatchedResponse = self.client.get(self.url)
+        response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("message", response.data)
         self.assertEqual(response.data["message"], "Account is already activated.")

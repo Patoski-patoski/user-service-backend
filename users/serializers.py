@@ -7,7 +7,7 @@ from rest_framework import serializers
 from typing import Optional, Dict
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-
+from django.contrib.auth import authenticate
 
 class UserRegistrationSerializer(serializers.ModelSerializer[User]):
     """Serializer for user registration."""
@@ -88,3 +88,36 @@ class UserRegistrationSerializer(serializers.ModelSerializer[User]):
         )
 
         return user
+
+
+
+class UserLoginSerializer(serializers.ModelSerializer[User]):
+    """Serializer for user login."""
+    email = serializers.CharField(
+        required=True,
+        help_text="Enter your email.",
+    )
+    password = serializers.CharField(
+        style={"input_type": "password"},
+        write_only=True,
+        required=True,
+        help_text="Enter your password.",
+    )
+
+    class Meta:
+        model = User
+        fields = ["email", "password"]
+
+    def validate(self, attrs: Dict[str, str]) -> Dict[str, str]:
+        """Validate user credentials."""
+        email: Optional[str] = attrs.get("email")
+        password: Optional[str] = attrs.get("password")
+
+        if not email or not password:
+            raise serializers.ValidationError("Email and password are required.")
+
+        user: Optional[User] = authenticate(email=email, password=password)
+
+        if not user:
+            raise serializers.ValidationError("Invalid credentials.")
+        return attrs
