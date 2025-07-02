@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from typing import Dict, Any
+from celery.schedules import crontab
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
@@ -40,7 +41,15 @@ INSTALLED_APPS: list[str] = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework_simplejwt',
 ]
+
+CELERY_BEAT_SCHEDULE = {
+    'delete-inactive-users-every-week': {
+        'task': 'users.tasks.delete_inactive_users',
+        'schedule':  crontab(minute=2)
+    },
+}
 
 
 MIDDLEWARE: list[str] = [
@@ -139,6 +148,9 @@ REST_FRAMEWORK: Dict[str, Any] = {
         "anon": "5/minute",  # 5 requests per minute for anonymous users
         "user": "5/minute",  # 5 requests per minute for authenticated users
     },
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ],
 }
 
 SITE_PROTOCOL = "http"  # Change to 'https' in production

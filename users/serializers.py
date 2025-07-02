@@ -95,12 +95,14 @@ class UserLoginSerializer(serializers.ModelSerializer[User]):
     """Serializer for user login."""
     email = serializers.CharField(
         required=True,
+        label="Email",
         help_text="Enter your email.",
     )
     password = serializers.CharField(
         style={"input_type": "password"},
         write_only=True,
         required=True,
+        label="Password",
         help_text="Enter your password.",
     )
 
@@ -114,10 +116,11 @@ class UserLoginSerializer(serializers.ModelSerializer[User]):
         password: Optional[str] = attrs.get("password")
 
         if not email or not password:
-            raise serializers.ValidationError("Email and password are required.")
+            raise serializers.ValidationError({"detail": "Email and password are required."})
 
-        user: Optional[User] = authenticate(email=email, password=password)
+        user = authenticate(email=email, password=password)
+        print("Login validate: user", user)
+        if user is None:
+            raise serializers.ValidationError({"detail": "Invalid credentials."})
 
-        if not user:
-            raise serializers.ValidationError("Invalid credentials.")
         return attrs

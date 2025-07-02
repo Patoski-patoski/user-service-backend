@@ -55,7 +55,7 @@ class UserManager(BaseUserManager[U]):
 
 
 def default_activation_token_expiry() -> datetime:
-    return timezone.now() + timedelta(hours=12)
+    return timezone.now() + timedelta(seconds=10)
 
 
 class User(AbstractBaseUser, PermissionsMixin):

@@ -132,7 +132,7 @@ class RegisterViewTests(APITestCase):
         self.assertIsNotNone(user)
         self.assertFalse(user.is_active)
         self.assertEqual(len(mail.outbox), 1)
-        print("\n\nOutbox", mail.outbox)
+        print("\n\nOutbox", mail.outbox[0].subject)
         self.assertIn("Activate your account", mail.outbox[0].subject)
 
     @override_settings(
