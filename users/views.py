@@ -9,12 +9,12 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from django.conf import settings
 # from user_service import settings
 from django.core.mail import send_mail
-from django.utils import timezone
+# from django.utils import timezone
 
 
 from typing import Dict, Any
 from .serializers import UserRegistrationSerializer
-from datetime import timezone
+# from datetime import timezone
 import logging
 
 from .models import User
@@ -29,7 +29,7 @@ class RegisterView(APIView):
     and sending an activation email.
     """
 
-    throttle_classes = [AnonRateThrottle, UserRateThrottle]
+    throttle_classes: list[type[AnonRateThrottle] | type[UserRateThrottle]] = [AnonRateThrottle, UserRateThrottle]
 
     def post(self, request: DRFRequest) -> Response:
         """Register a new user and send an activation email."""
@@ -91,7 +91,7 @@ class ActivateView(APIView):
 
     def get(self, request: DRFRequest, token: str) -> Response:
         try:
-            user = User.objects.get(activation_token=token)
+            user: User = User.objects.get(activation_token=token)
             if user.is_active:
                 return Response(
                     {"message": "Account is already activated."},

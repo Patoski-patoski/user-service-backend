@@ -48,13 +48,13 @@ class UserRegistrationSerializer(serializers.ModelSerializer[User]):
             )
         return value.lower()
 
-    def validate_password(self, value: str) -> str:
+    def validate_password(self, password: str) -> str:
         """Validate password strength using Django's built-in validators"""
         try:
-            validate_password(value)
+            validate_password(password)
         except ValidationError as e:
             raise serializers.ValidationError({"password": list(e.messages)})
-        return value
+        return password
 
     def validate(self, attrs: Dict[str, str]) -> Dict[str, str]:
         """Validate that password and confirm_password match"""
@@ -90,7 +90,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer[User]):
         return user
 
 
-
 class UserLoginSerializer(serializers.ModelSerializer[User]):
     """Serializer for user login."""
     email = serializers.CharField(
@@ -108,7 +107,7 @@ class UserLoginSerializer(serializers.ModelSerializer[User]):
 
     class Meta:
         model = User
-        fields = ["email", "password"]
+        fields: list[str] = ["email", "password"]
 
     def validate(self, attrs: Dict[str, str]) -> Dict[str, str]:
         """Validate user credentials."""

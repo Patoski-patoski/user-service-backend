@@ -130,10 +130,11 @@ class RegisterViewTests(APITestCase):
         )
         user: Optional[User] = User.objects.filter(email="testuser@example.com").first()
         self.assertIsNotNone(user)
-        self.assertFalse(user.is_active)
+        if user is not None:
+            self.assertFalse(user.is_active)
         self.assertEqual(len(mail.outbox), 1)
         print("\n\nOutbox", mail.outbox[0].subject)
-        self.assertIn("Activate your account", mail.outbox[0].subject)
+        self.assertIn("Activate your account", str(mail.outbox[0].subject))
 
     @override_settings(
         REST_FRAMEWORK={

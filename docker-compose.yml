@@ -15,6 +15,8 @@ services:
       - DB_PASSWORD=user_service_password
   user-db:
     image: postgres:14
+    ports:
+      - "5432:5432"
     environment:
       - POSTGRES_DB=user_service_db
       - POSTGRES_USER=user_service_user
@@ -28,9 +30,23 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
 
 
-  celery:
+  celery-beat:
     build: .
     command: celery -A user_service beat --loglevel=INFO
+    volumes:
+      - .:/app
+    depends_on:
+      - user-service
+      - rabbitmq
+    environment:
+      - DB_HOST=db
+      - DB_NAME=user_service_db
+      - DB_USER=user_service_user
+      - DB_PASSWORD=user_service_password
+
+  celery-worker:
+    build: .
+    command: celery -A user_service worker --loglevel=INFO
     volumes:
       - .:/app
     depends_on:
