@@ -30,7 +30,7 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 
-# Application definition
+# Application definition 
 
 INSTALLED_APPS: list[str] = [
     'users',
@@ -45,9 +45,9 @@ INSTALLED_APPS: list[str] = [
 ]
 
 CELERY_BEAT_SCHEDULE = {
-    'delete-expired-pending-users-every-hour': {
-        'task': 'users.tasks.delete_expired_pending_users',
-        'schedule':  crontab(minute=0, hour='*')
+    "delete-expired-pending-users-every-1-hour": {
+        "task": "users.tasks.delete_expired_pending_users",
+        "schedule": crontab(hour="*/1"),  # every 1 hour
     },
 }
 

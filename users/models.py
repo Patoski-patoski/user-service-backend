@@ -53,6 +53,30 @@ class UserManager(BaseUserManager[U]):
 
         return self.create_user(email, password, **extra_fields)
 
+def default_activation_token_expiry() -> datetime:
+    return timezone.now() + timedelta(seconds=10)
+
+def default_pending_user_expiry() -> datetime:
+    return timezone.now() + timedelta(minutes=10)
+
+
+
+class PendingUser(models.Model):
+    """Model for temporarily storing user data pending email verification."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    email = models.EmailField(unique=True, max_length=100)
+    password = models.CharField(max_length=128)
+    first_name = models.CharField(max_length=30, blank=True)
+    last_name = models.CharField(max_length=30, blank=True)
+    verification_token = models.UUIDField(
+        default=uuid.uuid4, editable=False, unique=True
+    )
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+    expires_at = models.DateTimeField(default=default_pending_user_expiry)
+
+    def __str__(self) -> str:
+        return self.email
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -91,23 +115,4 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     class Meta:
         swappable: str = "AUTH_USER_MODEL"
-
-
-def default_pending_user_expiry() -> datetime:
-    return timezone.now() + timedelta(minutes=10)
-
-
-class PendingUser(models.Model):
-    """Model for temporarily storing user data pending email verification."""
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    email = models.EmailField(unique=True, max_length=100)
-    password = models.CharField(max_length=128)  # Stores hashed password
-    first_name = models.CharField(max_length=30, blank=True)
-    last_name = models.CharField(max_length=30, blank=True)
-    verification_token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    created_at = models.DateTimeField(default=timezone.now, editable=False)
-    expires_at = models.DateTimeField(default=default_pending_user_expiry)
-
-    def __str__(self) -> str:
-        return self.email
+        
