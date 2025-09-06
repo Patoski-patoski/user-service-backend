@@ -45,9 +45,9 @@ INSTALLED_APPS: list[str] = [
 ]
 
 CELERY_BEAT_SCHEDULE = {
-    'delete-inactive-users-every-week': {
-        'task': 'users.tasks.delete_inactive_users',
-        'schedule':  crontab(minute=2)
+    'delete-expired-pending-users-every-hour': {
+        'task': 'users.tasks.delete_expired_pending_users',
+        'schedule':  crontab(minute=0, hour='*')
     },
 }
 

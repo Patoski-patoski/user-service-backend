@@ -7,25 +7,20 @@ from rest_framework.views import APIView
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 
 from django.conf import settings
-# from user_service import settings
 from django.core.mail import send_mail
-# from django.utils import timezone
-
+from django.utils import timezone
 
 from typing import Dict, Any
-from .serializers import UserRegistrationSerializer
-# from datetime import timezone
+from .serializers import PendingUserSerializer
 import logging
 
-from .models import User
+from .models import User, PendingUser
 
 logger: logging.Logger = logging.getLogger(__name__)
-# Create your views here.
-
 
 class RegisterView(APIView):
     """
-    Handle user registration by accepting email and password, creating a user,
+    Handle user registration by accepting email and password, creating a pending user,
     and sending an activation email.
     """
 
@@ -33,7 +28,7 @@ class RegisterView(APIView):
 
     def post(self, request: DRFRequest) -> Response:
         """Register a new user and send an activation email."""
-        serializer = UserRegistrationSerializer(data=request.data)
+        serializer = PendingUserSerializer(data=request.data)
 
         if not serializer.is_valid():
             logger.error(f"Registration failed: {serializer.errors}")
@@ -41,10 +36,10 @@ class RegisterView(APIView):
                 {"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST
             )
         try:
-            user = serializer.save()
-            activation_link: str = f"{settings.SITE_PROTOCOL}://{settings.SITE_DOMAIN}/api/users/activate/{user.activation_token}"
+            pending_user = serializer.save()
+            activation_link: str = f"{settings.SITE_PROTOCOL}://{settings.SITE_DOMAIN}/api/users/activate/{pending_user.verification_token}"
 
-            email_sent: bool = self.send_activation_email(user.email, activation_link)
+            email_sent: bool = self.send_activation_email(pending_user.email, activation_link)
 
             response_data: Dict[str, Any] = {
                 "message": "Registration successful. Please check your email to activate your account.",
@@ -91,25 +86,26 @@ class ActivateView(APIView):
 
     def get(self, request: DRFRequest, token: str) -> Response:
         try:
-            user: User = User.objects.get(activation_token=token)
-            if user.is_active:
-                return Response(
-                    {"message": "Account is already activated."},
-                    status=status.HTTP_200_OK,
-                )
-            from django.utils import timezone
+            pending_user: PendingUser = PendingUser.objects.get(verification_token=token)
 
-            if (
-                user.activation_token_expiry
-                and user.activation_token_expiry < timezone.now()
-            ):
+            if pending_user.expires_at < timezone.now():
                 return Response(
                     {"error": "Activation token has expired."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            user.is_active = True
-            user.save(update_fields=["is_active"])
+            # Create the user
+            user = User.objects.create_user(
+                email=pending_user.email,
+                password=pending_user.password,  # The password is already hashed
+                first_name=pending_user.first_name,
+                last_name=pending_user.last_name,
+            )
+            user.set_password(pending_user.password) # Re-set password to ensure it's hashed correctly
+            user.save()
+
+            # Delete the pending user
+            pending_user.delete()
 
             logger.info(f"User {user.email} activated successfully.")
 
@@ -121,10 +117,10 @@ class ActivateView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-        except User.DoesNotExist:
+        except PendingUser.DoesNotExist:
             return Response(
                 {"error": "Invalid activation token."},
-                status=status.HTTP_400_BAD_REQUEST,  # Changed from 404 to 400
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         except Exception as e:

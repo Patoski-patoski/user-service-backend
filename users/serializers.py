@@ -2,15 +2,16 @@
 
 """Serializer for user registration and validation."""
 
-from .models import User
+from .models import User, PendingUser
 from rest_framework import serializers 
 from typing import Optional, Dict
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.contrib.auth import authenticate
+from django.contrib.auth.hashers import make_password
 
-class UserRegistrationSerializer(serializers.ModelSerializer[User]):
-    """Serializer for user registration."""
+class PendingUserSerializer(serializers.ModelSerializer[PendingUser]):
+    """Serializer for pending user registration."""
 
     password = serializers.CharField(
         write_only=True,
@@ -27,7 +28,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer[User]):
     )
 
     class Meta:
-        model = User
+        model = PendingUser
         fields = (
             "email", 
             "first_name", 
@@ -41,10 +42,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer[User]):
         }
 
     def validate_email(self, value: str) -> str:
-        """Validate email uniqueness"""
-        if User.objects.filter(email__iexact=value).exists():
+        """Validate email uniqueness in both User and PendingUser models."""
+        if User.objects.filter(email__iexact=value).exists() or \
+           PendingUser.objects.filter(email__iexact=value).exists():
             raise serializers.ValidationError(
-                {"email": "A user with this email already exists."}
+                {"email": "A user with this email already exists or is pending verification."}
             )
         return value.lower()
 
@@ -76,19 +78,10 @@ class UserRegistrationSerializer(serializers.ModelSerializer[User]):
 
     def create(
         self, validated_data: Dict[str, str]
-    ) -> User:
-        """Create and return a new user instance."""
-        password: str = validated_data.pop("password")
-
-        user: User = User.objects.create_user(
-            email=validated_data["email"],
-            password=password,
-            first_name=validated_data.get("first_name", ""),
-            last_name=validated_data.get("last_name", ""),
-        )
-
-        return user
-
+    ) -> PendingUser:
+        """Create and return a new pending user instance."""
+        validated_data["password"] = make_password(validated_data["password"])
+        return PendingUser.objects.create(**validated_data)
 
 class UserLoginSerializer(serializers.ModelSerializer[User]):
     """Serializer for user login."""
