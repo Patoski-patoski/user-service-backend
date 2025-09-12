@@ -5,16 +5,19 @@ from rest_framework.response import Response
 from rest_framework.request import Request as DRFRequest
 from rest_framework.views import APIView
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework_simplejwt.views import TokenObtainPairView
+
 
 from django.conf import settings
 from django.core.mail import send_mail
 from django.utils import timezone
 
 from typing import Dict, Any
-from .serializers import PendingUserSerializer
+from .serializers import PendingUserSerializer, UserLoginSerializer, UserProfileSerializer
 import logging
 
-from .models import User, PendingUser
+from .models import User, PendingUser, UserProfile
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -95,7 +98,7 @@ class ActivateView(APIView):
                 )
 
             # Create the user
-            user = User.objects.create_user(
+            user: User = User.objects.create_user(
                 email=pending_user.email,
                 password=pending_user.password,  # The password is already hashed
                 first_name=pending_user.first_name,
@@ -103,6 +106,9 @@ class ActivateView(APIView):
             )
             user.set_password(pending_user.password) # Re-set password to ensure it's hashed correctly
             user.save()
+
+            # Create a profile for the user
+            UserProfile.objects.create(user=user)
 
             # Delete the pending user
             pending_user.delete()
@@ -129,3 +135,57 @@ class ActivateView(APIView):
                 {"error": f"An unexpected error occurred: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class LoginView(TokenObtainPairView):
+    """
+    Handle user login and return a JWT token pair.
+    """
+    permission_classes = (AllowAny,)
+    serializer_class = UserLoginSerializer
+
+    def post(self, request: DRFRequest, *args, **kwargs) -> Response:
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            user = User.objects.get(email=request.data['email'])
+            UserProfile.objects.get_or_create(user=user)
+        return response
+
+
+class ProfileView(APIView):
+    """
+    Handle user profile retrieval and updates.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: DRFRequest) -> Response:
+        """
+        Retrieve the user's profile.
+        """
+        user = request.user
+        try:
+            profile = UserProfile.objects.get(user=user)
+            serializer = UserProfileSerializer(profile)
+            return Response(serializer.data)
+        except UserProfile.DoesNotExist:
+            return Response({"error": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    def put(self, request: DRFRequest) -> Response:
+        """
+        Update the user's profile.
+        """
+        user = request.user
+        try:
+            profile = UserProfile.objects.get(user=user)
+            serializer = UserProfileSerializer(profile, data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except UserProfile.DoesNotExist:
+            # If profile does not exist, create one
+            serializer = UserProfileSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save(user=user)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

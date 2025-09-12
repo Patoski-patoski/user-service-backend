@@ -116,3 +116,21 @@ class User(AbstractBaseUser, PermissionsMixin):
     class Meta:
         swappable: str = "AUTH_USER_MODEL"
         
+class UserProfile(models.Model):
+    """
+    Model to store additional user profile information.
+    """
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name='profile',
+        primary_key=True,
+        help_text="The user associated with this profile."
+    )
+    bio = models.TextField(blank=True, help_text="A short bio of the user.")
+    location = models.CharField(max_length=100, blank=True, help_text="The user's location.")
+    birth_date = models.DateField(null=True, blank=True, help_text="The user's birth date.")
+
+    def __str__(self) -> str:
+        return self.user.email
+        

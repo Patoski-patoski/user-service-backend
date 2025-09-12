@@ -2,7 +2,7 @@
 
 """Serializer for user registration and validation."""
 
-from .models import User, PendingUser
+from .models import User, PendingUser, UserProfile
 from rest_framework import serializers 
 from typing import Optional, Dict
 from django.contrib.auth.password_validation import validate_password
@@ -116,3 +116,12 @@ class UserLoginSerializer(serializers.ModelSerializer[User]):
             raise serializers.ValidationError({"detail": "Invalid credentials."})
 
         return attrs
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the UserProfile model.
+    """
+    class Meta:
+        model = UserProfile
+        fields = ('bio', 'location', 'birth_date')
