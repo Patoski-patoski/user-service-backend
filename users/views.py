@@ -100,12 +100,10 @@ class ActivateView(APIView):
             # Create the user
             user: User = User.objects.create_user(
                 email=pending_user.email,
-                password=pending_user.password,  # The password is already hashed
+                password=pending_user.password,
                 first_name=pending_user.first_name,
                 last_name=pending_user.last_name,
             )
-            user.set_password(pending_user.password) # Re-set password to ensure it's hashed correctly
-            user.save()
 
             # Create a profile for the user
             UserProfile.objects.create(user=user)
@@ -146,6 +144,7 @@ class LoginView(TokenObtainPairView):
 
     def post(self, request: DRFRequest, *args, **kwargs) -> Response:
         response = super().post(request, *args, **kwargs)
+        print("Login Response", response)
         if response.status_code == 200:
             user = User.objects.get(email=request.data['email'])
             UserProfile.objects.get_or_create(user=user)

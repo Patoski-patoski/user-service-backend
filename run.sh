@@ -8,6 +8,8 @@ if sudo fuser -k 5672/tcp ; then
 fi
 
 if docker compose up ; then
+  echo "Restarting user-service..."
+  docker compose restart user-service
   echo "Docker containers started successfully."
 else
   echo "Stopping local PostgreSQL..."

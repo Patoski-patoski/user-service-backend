@@ -50,7 +50,7 @@ class PendingUserSerializer(serializers.ModelSerializer[PendingUser]):
             )
         return value.lower()
 
-    def validate_password(self, password: str) -> str:
+    def validate_raw_password(self, password: str) -> str:
         """Validate password strength using Django's built-in validators"""
         try:
             validate_password(password)
@@ -80,7 +80,6 @@ class PendingUserSerializer(serializers.ModelSerializer[PendingUser]):
         self, validated_data: Dict[str, str]
     ) -> PendingUser:
         """Create and return a new pending user instance."""
-        validated_data["password"] = make_password(validated_data["password"])
         return PendingUser.objects.create(**validated_data)
 
 class UserLoginSerializer(serializers.ModelSerializer[User]):

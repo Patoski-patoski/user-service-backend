@@ -10,22 +10,35 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
+import environ
 from pathlib import Path
 from typing import Dict, Any
 from celery.schedules import crontab
 
+env = environ.Env(
+    # set casting, default value
+    DEBUG=(bool, False)
+)
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
+
+# reading .env file
+environ.Env.read_env(
+    env_file=os.path.join(BASE_DIR, '.env')
+)
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-&oov$1vkspxm=e)jduf(_t^zjg&sa93*glt0#raf0^=wlv^n3#'
+SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env('DEBUG')
 
 ALLOWED_HOSTS = []
 
@@ -45,9 +58,9 @@ INSTALLED_APPS: list[str] = [
 ]
 
 CELERY_BEAT_SCHEDULE = {
-    "delete-expired-pending-users-every-1-hour": {
+    "delete-expired-pending-users-every-30-minutes": {
         "task": "users.tasks.delete_expired_pending_users",
-        "schedule": crontab(hour="*/1"),  # every 1 hour
+        "schedule": crontab(minute="*/30"),  # every 30 minutes
     },
 }
 
@@ -85,15 +98,8 @@ WSGI_APPLICATION = 'user_service.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES: Dict[str, Dict[str, str]] = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'user_service_db',
-        'USER': 'user_service_user',
-        'PASSWORD': 'user_service_password',
-        'HOST': 'user-db',
-        'PORT': '5432',
-    }
+DATABASES = {
+    'default': env.db(),
 }
 
 

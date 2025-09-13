@@ -5,14 +5,11 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
+    env_file:
+      - .env
     depends_on:
       - user-db
       - rabbitmq
-    environment:
-      - DB_HOST=db
-      - DB_NAME=user_service_db
-      - DB_USER=user_service_user
-      - DB_PASSWORD=user_service_password
   user-db:
     image: postgres:14
     ports:
@@ -35,28 +32,22 @@ services:
     command: celery -A user_service beat --loglevel=INFO
     volumes:
       - .:/app
+    env_file:
+      - .env
     depends_on:
       - user-service
       - rabbitmq
-    environment:
-      - DB_HOST=db
-      - DB_NAME=user_service_db
-      - DB_USER=user_service_user
-      - DB_PASSWORD=user_service_password
 
   celery-worker:
     build: .
     command: celery -A user_service worker --loglevel=INFO
     volumes:
       - .:/app
+    env_file:
+      - .env
     depends_on:
       - user-service
       - rabbitmq
-    environment:
-      - DB_HOST=db
-      - DB_NAME=user_service_db
-      - DB_USER=user_service_user
-      - DB_PASSWORD=user_service_password
       
 volumes:
   postgres_data:
