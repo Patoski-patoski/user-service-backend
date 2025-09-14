@@ -1,0 +1,10 @@
+Connect to docker-postgresql via terminal:
+    docker exec -it user-service-backend-user-db-1 psql -U user_service_user -d user_service_db
+
+Connect to docker-postgresql via Vs Code database extension:
+
+    Host: localhost
+    Port: 5432
+    Database: user_service_db
+    Password: user_service_password
+    username: user_service_user

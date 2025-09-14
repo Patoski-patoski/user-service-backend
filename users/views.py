@@ -1,25 +1,28 @@
 # users/view.py
 
-from rest_framework import status
-from rest_framework.response import Response
-from rest_framework.request import Request as DRFRequest
-from rest_framework.views import APIView
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework_simplejwt.views import TokenObtainPairView
-
+import logging
+from typing import Any, Dict
 
 from django.conf import settings
 from django.core.mail import send_mail
 from django.utils import timezone
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request as DRFRequest
+from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenObtainPairView
 
-from typing import Dict, Any
-from .serializers import PendingUserSerializer, UserLoginSerializer, UserProfileSerializer
-import logging
-
-from .models import User, PendingUser, UserProfile
+from .models import PendingUser, User, UserProfile
+from .serializers import (
+    PendingUserSerializer,
+    UserLoginSerializer,
+    UserProfileSerializer,
+)
 
 logger: logging.Logger = logging.getLogger(__name__)
+
 
 class RegisterView(APIView):
     """
@@ -27,7 +30,10 @@ class RegisterView(APIView):
     and sending an activation email.
     """
 
-    throttle_classes: list[type[AnonRateThrottle] | type[UserRateThrottle]] = [AnonRateThrottle, UserRateThrottle]
+    throttle_classes: list[type[AnonRateThrottle] | type[UserRateThrottle]] = [
+        AnonRateThrottle,
+        UserRateThrottle,
+    ]
 
     def post(self, request: DRFRequest) -> Response:
         """Register a new user and send an activation email."""
@@ -40,9 +46,13 @@ class RegisterView(APIView):
             )
         try:
             pending_user = serializer.save()
-            activation_link: str = f"{settings.SITE_PROTOCOL}://{settings.SITE_DOMAIN}/api/users/activate/{pending_user.verification_token}"
+            activation_link: str = (
+                f"{settings.SITE_PROTOCOL}://{settings.SITE_DOMAIN}/api/users/activate/{pending_user.verification_token}"
+            )
 
-            email_sent: bool = self.send_activation_email(pending_user.email, activation_link)
+            email_sent: bool = self.send_activation_email(
+                pending_user.email, activation_link
+            )
 
             response_data: Dict[str, Any] = {
                 "message": "Registration successful. Please check your email to activate your account.",
@@ -82,6 +92,7 @@ class RegisterView(APIView):
             )
             return False
 
+
 class ActivateView(APIView):
     """
     Handle user account activation by verifying the activation token.
@@ -89,12 +100,21 @@ class ActivateView(APIView):
 
     def get(self, request: DRFRequest, token: str) -> Response:
         try:
-            pending_user: PendingUser = PendingUser.objects.get(verification_token=token)
+            pending_user: PendingUser = PendingUser.objects.get(
+                verification_token=token
+            )
 
             if pending_user.expires_at < timezone.now():
                 return Response(
                     {"error": "Activation token has expired."},
                     status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if User.objects.filter(email=pending_user.email, is_active=True).exists():
+                pending_user.delete()
+                return Response(
+                    {"message": "Account is already activated."},
+                    status=status.HTTP_200_OK,
                 )
 
             # Create the user
@@ -104,6 +124,8 @@ class ActivateView(APIView):
                 first_name=pending_user.first_name,
                 last_name=pending_user.last_name,
             )
+            user.is_active = True
+            user.save()
 
             # Create a profile for the user
             UserProfile.objects.create(user=user)
@@ -139,23 +161,16 @@ class LoginView(TokenObtainPairView):
     """
     Handle user login and return a JWT token pair.
     """
-    permission_classes = (AllowAny,)
-    serializer_class = UserLoginSerializer
 
-    def post(self, request: DRFRequest, *args, **kwargs) -> Response:
-        response = super().post(request, *args, **kwargs)
-        print("Login Response", response)
-        if response.status_code == 200:
-            user = User.objects.get(email=request.data['email'])
-            UserProfile.objects.get_or_create(user=user)
-        return response
+    serializer_class = UserLoginSerializer
 
 
 class ProfileView(APIView):
     """
     Handle user profile retrieval and updates.
     """
-    permission_classes = [IsAuthenticated]
+
+    permission_classes: list[type[IsAuthenticated]] = [IsAuthenticated]
 
     def get(self, request: DRFRequest) -> Response:
         """
@@ -163,11 +178,13 @@ class ProfileView(APIView):
         """
         user = request.user
         try:
-            profile = UserProfile.objects.get(user=user)
+            profile: UserProfile = UserProfile.objects.get(user=user)
             serializer = UserProfileSerializer(profile)
             return Response(serializer.data)
         except UserProfile.DoesNotExist:
-            return Response({"error": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"error": "Profile not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
     def put(self, request: DRFRequest) -> Response:
         """
@@ -175,7 +192,7 @@ class ProfileView(APIView):
         """
         user = request.user
         try:
-            profile = UserProfile.objects.get(user=user)
+            profile: UserProfile = UserProfile.objects.get(user=user)
             serializer = UserProfileSerializer(profile, data=request.data)
             if serializer.is_valid():
                 serializer.save()

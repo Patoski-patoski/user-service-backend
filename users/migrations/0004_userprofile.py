@@ -8,17 +8,40 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('users', '0003_pendinguser_remove_user_activation_token_and_more'),
+        ("users", "0003_pendinguser_remove_user_activation_token_and_more"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='UserProfile',
+            name="UserProfile",
             fields=[
-                ('user', models.OneToOneField(help_text='The user associated with this profile.', on_delete=django.db.models.deletion.CASCADE, primary_key=True, related_name='profile', serialize=False, to=settings.AUTH_USER_MODEL)),
-                ('bio', models.TextField(blank=True, help_text='A short bio of the user.')),
-                ('location', models.CharField(blank=True, help_text="The user's location.", max_length=100)),
-                ('birth_date', models.DateField(blank=True, help_text="The user's birth date.", null=True)),
+                (
+                    "user",
+                    models.OneToOneField(
+                        help_text="The user associated with this profile.",
+                        on_delete=django.db.models.deletion.CASCADE,
+                        primary_key=True,
+                        related_name="profile",
+                        serialize=False,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "bio",
+                    models.TextField(blank=True, help_text="A short bio of the user."),
+                ),
+                (
+                    "location",
+                    models.CharField(
+                        blank=True, help_text="The user's location.", max_length=100
+                    ),
+                ),
+                (
+                    "birth_date",
+                    models.DateField(
+                        blank=True, help_text="The user's birth date.", null=True
+                    ),
+                ),
             ],
         ),
     ]

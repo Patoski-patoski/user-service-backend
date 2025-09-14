@@ -2,18 +2,20 @@
 
 """Custom user model for the application."""
 
-from django.test import TestCase
-from django.test.utils import override_settings
+# import uuid
+import uuid
+from typing import Dict
+
 from django.core import mail
 from django.core.cache import cache
+from django.test import TestCase
+from django.test.utils import override_settings
 from rest_framework import status
-from rest_framework.test import APIClient, APITestCase
 from rest_framework.response import Response
-from typing import Dict, Optional
-import uuid
+from rest_framework.test import APIClient, APITestCase
 
-from .models import User
-from users.serializers import UserRegistrationSerializer
+from .serializers import PendingUserSerializer
+from .models import User, PendingUser
 
 # Create your tests here.
 
@@ -33,7 +35,7 @@ class UserModelTests(TestCase):
         self.assertEqual(self.user.email, self.email.lower())
         self.assertTrue(self.user.check_password(self.password))
         self.assertFalse(self.user.is_active)
-        self.assertIsInstance(self.user.activation_token, uuid.UUID)
+        self.assertFalse(hasattr(self.user, "activation_token"))
         self.assertEqual(self.user.full_name, "Test User")
 
     def test_create_superuser(self) -> None:
@@ -53,7 +55,7 @@ class UserModelTests(TestCase):
         self.assertEqual(str(self.user), self.email)
 
 
-class UserRegistrationSerializerTests(TestCase):
+class PendingUserSerializerTests(TestCase):
     def setUp(self) -> None:
         self.valid_data: Dict[str, str] = {
             "email": "newuser@example.com",
@@ -73,31 +75,32 @@ class UserRegistrationSerializerTests(TestCase):
 
     def test_valid_data(self) -> None:
         """Test serializer with valid data."""
-        serializer = UserRegistrationSerializer(data=self.valid_data)
+        serializer = PendingUserSerializer(data=self.valid_data)
         self.assertTrue(serializer.is_valid())
         user = serializer.save()
         self.assertEqual(user.email, "newuser@example.com")
-        self.assertTrue(user.check_password("newuserpassword123"))
+        
 
     def test_password_mismatch(self) -> None:
         """Test serializer with mismatched passwords"""
-        serializer = UserRegistrationSerializer(data=self.invalid_data)
+        serializer = PendingUserSerializer(data=self.invalid_data)
         self.assertFalse(serializer.is_valid())
         self.assertIn("confirm_password", serializer.errors)
 
     def test_duplicate_email(self) -> None:
         """Test serializer with duplicate email"""
         User.objects.create_user(email="newuser@example.com", password="password123")
-        serializer = UserRegistrationSerializer(data=self.valid_data)
+        serializer = PendingUserSerializer(data=self.valid_data)
         self.assertFalse(serializer.is_valid())
         self.assertIn("email", serializer.errors)
 
 
 class RegisterViewTests(APITestCase):
     def setUp(self) -> None:
-        
+        User.objects.all().delete()
+        PendingUser.objects.all().delete()
         cache.clear()
-        
+
         self.client: APIClient = APIClient()
         self.url = "/api/users/register/"
         self.base_valid_data: Dict[str, str] = {
@@ -106,32 +109,32 @@ class RegisterViewTests(APITestCase):
             "password": "SecurePass123",
             "confirm_password": "SecurePass123",
         }
-    
+
     def tearDown(self) -> None:
         cache.clear()
-    
+
     @override_settings(
         EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
         REST_FRAMEWORK={
-            "DEFAULT_THROTTLE_CLASSES": [],  # Disable throttling for these tests                
+            "DEFAULT_THROTTLE_CLASSES": [],  # Disable throttling for these tests
             "DEFAULT_THROTTLE_RATES": {},
-        }
+        },
     )
     def test_successful_registration(self):
         """Test successful user registration."""
-        valid_data: Dict[str, str] = self.base_valid_data.copy()
+        valid_data  = self.base_valid_data.copy()
         valid_data["email"] = "testuser@example.com"
-        response: Response = self.client.post(self.url, valid_data, format="json")
+        response = self.client.post(self.url, valid_data, format="json")
         print("response", response.status_code)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(
             response.data["message"],
             "Registration successful. Please check your email to activate your account.",
         )
-        user: Optional[User] = User.objects.filter(email="testuser@example.com").first()
-        self.assertIsNotNone(user)
-        if user is not None:
-            self.assertFalse(user.is_active)
+        pending_user = PendingUser.objects.filter(email="testuser@example.com").first()
+        self.assertIsNotNone(pending_user)
+        if pending_user is not None:
+            self.assertFalse(User.objects.filter(email=pending_user.email).exists())
         self.assertEqual(len(mail.outbox), 1)
         print("\n\nOutbox", mail.outbox[0].subject)
         self.assertIn("Activate your account", str(mail.outbox[0].subject))
@@ -140,7 +143,7 @@ class RegisterViewTests(APITestCase):
         REST_FRAMEWORK={
             "DEFAULT_THROTTLE_CLASSES": [
                 "rest_framework.throttling.AnonRateThrottle",
-                ],
+            ],
             "DEFAULT_THROTTLE_RATES": {
                 "anon": "5/minute",
             },
@@ -155,7 +158,6 @@ class RegisterViewTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("confirm_password", response.data["errors"])
 
-    
     @override_settings(
         REST_FRAMEWORK={
             "DEFAULT_THROTTLE_CLASSES": [],  # Disable throttling for this test
@@ -183,59 +185,62 @@ class RegisterViewTests(APITestCase):
     )
     def test_rate_limiting(self) -> None:
         """Test rate limiting on registration endpoint."""
-        
+
         cache.clear()
-        
-        for i in range(5): 
+
+        for i in range(5):
             valid_data: Dict[str, str] = self.base_valid_data.copy()
             valid_data["email"] = f"testuser{i}@example.com"
             print("valid_data emails", valid_data["email"])
             response: Response = self.client.post(self.url, valid_data, format="json")
             self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
-        valid_data: Dict[str, str] = self.base_valid_data.copy()
+        valid_data = self.base_valid_data.copy()
         valid_data["email"] = "testuser6@example.com"
-        response: Response = self.client.post(self.url, valid_data, format="json")
+        response = self.client.post(self.url, valid_data, format="json")
         self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
         self.assertIn("Request was throttled", response.data.get("detail", ""))
-              
 
 
 class ActivateViewTests(APITestCase):
-    def setUp(self) -> None:
-        self.client: APIClient = APIClient()
-        self.user = User.objects.create_user(
+    def test_successful_activation(self) -> None:
+        """Test successful user account activation."""
+        pending_user = PendingUser.objects.create(
             email="testuser@example.com",
             password="SecurePass123",
         )
+        token = str(pending_user.verification_token)
+        url = f"/api/users/activate/{token}/"
 
-        self.token = str(self.user.activation_token)
-        self.url = f"/api/users/activate/{self.token}/"
-
-    def test_successful_activation(self) -> None:
-        """Test successful user account activation."""
-        response = self.client.get(self.url)
+        response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("message", response.data)
         self.assertEqual(response.data["message"], "Account activated successfully.")
 
-        # Refresh user from db
-        self.user.refresh_from_db()
-        self.assertTrue(self.user.is_active)
+        user = User.objects.get(email=pending_user.email)
+        self.assertTrue(user.is_active)
 
     def test_already_activated(self) -> None:
         """Test activation of an already activated account."""
-        self.user.is_active = True
-        self.user.save()
+        User.objects.create_user(
+            email="testuser@example.com",
+            password="SecurePass123",
+            is_active=True,
+        )
+        pending_user = PendingUser.objects.create(
+            email="testuser@example.com",
+            password="SecurePass123",
+        )
+        token = str(pending_user.verification_token)
+        url = f"/api/users/activate/{token}/"
 
-        response = self.client.get(self.url)
+        response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("message", response.data)
         self.assertEqual(response.data["message"], "Account is already activated.")
 
     def test_invalid_token(self) -> None:
-        """Test activation with an invalid token."""
-        invalid_url = "/api/users/activate/invalid-token/"
+        """Test activation with an invalid token."""    
+        invalid_url: str = f"/api/users/activate/{uuid.uuid4()}/"
         response: Response = self.client.get(invalid_url)
-        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

@@ -6,8 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('users', '0005_rename_password_pendinguser_raw_password'),
+        ("users", "0005_rename_password_pendinguser_raw_password"),
     ]
 
-    operations = [
-    ]
+    operations = []

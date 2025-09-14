@@ -11,9 +11,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 import os
-import environ
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
+
+import environ
 from celery.schedules import crontab
 
 env = environ.Env(
@@ -40,7 +41,7 @@ SECRET_KEY = env('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS: list[Any] = []
 
 
 # Application definition 
