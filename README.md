@@ -7,6 +7,7 @@ A scalable e-commerce platform using microservices architecture and Docker. The 
 - shopping cart
 - payment processing
 - order management
+- notication service
 
 Each of these features will be implemented as separate microservices, allowing for independent development, deployment, and scaling.
 
